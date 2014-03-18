@@ -4,7 +4,7 @@
   <title><![CDATA[Category: CSS | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/css/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2014-03-18T12:28:28+00:00</updated>
+  <updated>2014-03-18T12:02:57-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -14,9 +14,110 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Ruby Helper to Group Artworks into a Pinterest-style Layout for Email]]></title>
+    <link href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/"/>
+    <updated>2014-03-17T19:32:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email</id>
+    <content type="html"><![CDATA[<p><img src="/images/2014-03-17-ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/two-column-layout.png" alt="Example of two column layout" /></p>
+
+<p>Something we'd like to do is email our users some suggested artworks as part of their personalized emails. The layout of those suggestions should look something like our newly re-designed <a href="https://artsy.net/browse/artworks?price_range=-1%3A1000000000000">Browse</a> page, with a 'salon' style layout. Here's some simple Ruby code that can group artworks into columns for you, that can then be directly rendered in an email (via <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or your templating language of choice.)</p>
+
+<!-- more -->
+
+
+<h2>The code</h2>
+
+<p>First let's look at the code, and then I'll describe it:</p>
+
+<p>``` ruby
+module ArtworkColumns
+  # Return an array of artworks grouped together in sub arrays by being added to the shortest 'column'
+  # based on a fixed width and aspect ratios.
+  #
+  # @param {Array} artworks The array of artworks to group into columns
+  # @param {Number} num_columns The number of columns to group them into
+  # @param {Number} width The width the images will be displayed at
+  #
+  # @return {Array} An array of artworks grouped into sub arrays by being added to the shortest one.
+  def self.artwork_columns(artworks, num_columns, width)
+    artwork_cols = []</p>
+
+<pre><code># Initialize columns
+num_columns.times do
+  artwork_cols &lt;&lt; []
+end
+
+artworks.each do |artwork|
+  add_to_shortest_column!(artwork_cols, artwork, width)
+end
+
+artwork_cols
+</code></pre>
+
+<p>  end</p>
+
+<p>  private</p>
+
+<p>  # Adds artwork to shortest column
+  def self.add_to_shortest_column!(artwork_cols, artwork, width)
+    min_height = column_height(artwork_cols[0], width)
+    min_column_idx = 0</p>
+
+<pre><code>artwork_cols.each_with_index do |column, idx|
+  height = column_height(column, width)
+  if height &lt; min_height
+    min_height = height
+    min_column_idx = idx
+  end
+end
+
+artwork_cols[min_column_idx] &lt;&lt; artwork
+</code></pre>
+
+<p>  end</p>
+
+<p>  # Calculate sum of heights of artworks in column
+  def self.column_height(artwork_col, width)
+    height = 0
+    artwork_col.each do |artwork|
+      if (aspect_ratio = artwork.default_image.aspect_ratio)
+        height += (width / aspect_ratio).floor
+      else
+        height += width
+      end
+    end
+    height
+  end
+```</p>
+
+<p>The algorithm is quite simple (original JS idea and implementation courtesy of Artsy's <a href="https://github.com/gib">Gib</a>). The inputs are fairly obvious, an array of artworks to be grouped, the number of columns to group them into, and the width of each column.</p>
+
+<p>We then simply iterate over all our artworks, and add them to whichever column is shortest. This way we end up with several columns that are for the most part equally sized in height, and as they all have different aspect ratios, when they are rendered in a table, you wind up with a nice looking 'dynamic' layout. The height of each column is calculated as the sum of the heights of the artworks in each column. The heights are derived from the inputted widths and aspect ratios of the images.</p>
+
+<p>Here's how you might iterate over the returned column groupings and render a layout similar to the above:</p>
+
+<p><code>haml
+- artwork_suggestions.each_with_index do |artwork_arr, idx|
+  %td{ id: 'artwork-column', style: "width: 290px;padding-top:20px;text-align:left;" }
+    - artwork_array.each do |artwork|
+      %a{ href: "#{canonical_url}/artwork/#{artwork.slug}?#{@utm_params}" }&lt;
+        %img{ id: 'artwork', src: "#{artwork.default_image.image_url(:large)}", style: "width: 290px;" }
+      %br
+      &lt;!-- additional artwork details, title, artist, etc. --&gt;
+</code></p>
+
+<p>These few lines of Ruby code have allowed us to move logic out of Haml (yuck!) and into Ruby (yay!) and allow <a href="http://haml.info/">Haml</a> to just focus on rendering the objects passed in (certainly via loops and conditionals, etc.)</p>
+
+<p>That's all for now! In my next post I'll talk about how I use the Presenter pattern and memoization to move even more logic out of templates (and save some database calls while we're at it!)</p>
+
+<p>Thanks again! Post any comments or tips of your own here, and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Some Tips for Email Layout and Responsiveness]]></title>
     <link href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/"/>
-    <updated>2014-03-17T12:36:00+00:00</updated>
+    <updated>2014-03-17T12:36:00-04:00</updated>
     <id>http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness</id>
     <content type="html"><![CDATA[<p><img src="/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/analytics.png" alt="Example of Analytics Email" /></p>
 
@@ -270,7 +371,7 @@ Ruby-style string evaluation has proven invaluable.</li>
   <entry>
     <title type="html"><![CDATA[CSS Trick: Adjusting Text Underlines]]></title>
     <link href="http://artsy.github.io/blog/2012/04/10/css-trick-adjusting-text-underlines/"/>
-    <updated>2012-04-10T16:32:00+01:00</updated>
+    <updated>2012-04-10T16:32:00-04:00</updated>
     <id>http://artsy.github.io/blog/2012/04/10/css-trick-adjusting-text-underlines</id>
     <content type="html"><![CDATA[<p>Often times people will use <em>border-bottom: 1px solid</em> in favor of <em>text-decoration: underline</em> to give their links some breathing room. But what if you're giving it <em>too</em> much breathing room and want to adjust the height of that underline. With Adobe Garamond that happened to be the case, so we've come up with this little css trick:</p>
 
@@ -302,7 +403,7 @@ a::after {
   <entry>
     <title type="html"><![CDATA[Responsive Layouts with CSS3]]></title>
     <link href="http://artsy.github.io/blog/2012/01/17/responsive-layouts-with-css3/"/>
-    <updated>2012-01-17T11:03:00+00:00</updated>
+    <updated>2012-01-17T11:03:00-05:00</updated>
     <id>http://artsy.github.io/blog/2012/01/17/responsive-layouts-with-css3</id>
     <content type="html"><![CDATA[<p>All of the <a href="http://sass-lang.com/">SCSS</a> stylesheets used to design this blog compile down to one file (view the source of this page and check out screen.css), and there isn't any JavaScript affecting the layout. But there are really three versions of this page. If you're reading this on a smartphone, what you see is almost entirely different from what you would see if you were reading this in a full screen browser. If you're on a computer, try making this page full screen and slowly resize it to make it smaller. You'll first notice that the Artsy logo disappears just before it would cover the text in the main column. Keep reducing the viewport and eventually the page will snap into a mobile format with the Artsy logo centered at the top, followed by the centered header text and mobile search box all above the index of recent posts.</p>
 

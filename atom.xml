@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.io/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2014-03-18T12:28:28+00:00</updated>
+  <updated>2014-03-18T12:02:57-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -14,9 +14,167 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Ruby Helper to Group Artworks into a Pinterest-style Layout for Email]]></title>
+    <link href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/"/>
+    <updated>2014-03-17T19:32:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2014-03-17-ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/two-column-layout.png" alt="Example of two column layout" /></p>
+
+<p>Something we&#8217;d like to do is email our users some suggested artworks as part of their personalized emails. The layout of those suggestions should look something like our newly re-designed <a href="https://artsy.net/browse/artworks?price_range=-1%3A1000000000000">Browse</a> page, with a &#8216;salon&#8217; style layout. Here&#8217;s some simple Ruby code that can group artworks into columns for you, that can then be directly rendered in an email (via <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or your templating language of choice.)</p>
+
+<!-- more -->
+
+
+<h2>The code</h2>
+
+<p>First let&#8217;s look at the code, and then I&#8217;ll describe it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">ArtworkColumns</span>
+</span><span class='line'>  <span class="c1"># Return an array of artworks grouped together in sub arrays by being added to the shortest &#39;column&#39;</span>
+</span><span class='line'>  <span class="c1"># based on a fixed width and aspect ratios.</span>
+</span><span class='line'>  <span class="c1">#</span>
+</span><span class='line'>  <span class="c1"># @param {Array} artworks The array of artworks to group into columns</span>
+</span><span class='line'>  <span class="c1"># @param {Number} num_columns The number of columns to group them into</span>
+</span><span class='line'>  <span class="c1"># @param {Number} width The width the images will be displayed at</span>
+</span><span class='line'>  <span class="c1">#</span>
+</span><span class='line'>  <span class="c1"># @return {Array} An array of artworks grouped into sub arrays by being added to the shortest one.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">artwork_columns</span><span class="p">(</span><span class="n">artworks</span><span class="p">,</span> <span class="n">num_columns</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">artwork_cols</span> <span class="o">=</span> <span class="o">[]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># Initialize columns</span>
+</span><span class='line'>    <span class="n">num_columns</span><span class="o">.</span><span class="n">times</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">artwork_cols</span> <span class="o">&lt;&lt;</span> <span class="o">[]</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artworks</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">add_to_shortest_column!</span><span class="p">(</span><span class="n">artwork_cols</span><span class="p">,</span> <span class="n">artwork</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artwork_cols</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Adds artwork to shortest column</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">add_to_shortest_column!</span><span class="p">(</span><span class="n">artwork_cols</span><span class="p">,</span> <span class="n">artwork</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">min_height</span> <span class="o">=</span> <span class="n">column_height</span><span class="p">(</span><span class="n">artwork_cols</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">min_column_idx</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artwork_cols</span><span class="o">.</span><span class="n">each_with_index</span> <span class="k">do</span> <span class="o">|</span><span class="n">column</span><span class="p">,</span> <span class="n">idx</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">height</span> <span class="o">=</span> <span class="n">column_height</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>      <span class="k">if</span> <span class="n">height</span> <span class="o">&lt;</span> <span class="n">min_height</span>
+</span><span class='line'>        <span class="n">min_height</span> <span class="o">=</span> <span class="n">height</span>
+</span><span class='line'>        <span class="n">min_column_idx</span> <span class="o">=</span> <span class="n">idx</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artwork_cols</span><span class="o">[</span><span class="n">min_column_idx</span><span class="o">]</span> <span class="o">&lt;&lt;</span> <span class="n">artwork</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Calculate sum of heights of artworks in column</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">column_height</span><span class="p">(</span><span class="n">artwork_col</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">height</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'>    <span class="n">artwork_col</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork</span><span class="o">|</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="n">aspect_ratio</span> <span class="o">=</span> <span class="n">artwork</span><span class="o">.</span><span class="n">default_image</span><span class="o">.</span><span class="n">aspect_ratio</span><span class="p">)</span>
+</span><span class='line'>        <span class="n">height</span> <span class="o">+=</span> <span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">aspect_ratio</span><span class="p">)</span><span class="o">.</span><span class="n">floor</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>        <span class="n">height</span> <span class="o">+=</span> <span class="n">width</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>    <span class="n">height</span>
+</span><span class='line'>  <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The algorithm is quite simple (original JS idea and implementation courtesy of Artsy&#8217;s <a href="https://github.com/gib">Gib</a>). The inputs are fairly obvious, an array of artworks to be grouped, the number of columns to group them into, and the width of each column.</p>
+
+<p>We then simply iterate over all our artworks, and add them to whichever column is shortest. This way we end up with several columns that are for the most part equally sized in height, and as they all have different aspect ratios, when they are rendered in a table, you wind up with a nice looking &#8216;dynamic&#8217; layout. The height of each column is calculated as the sum of the heights of the artworks in each column. The heights are derived from the inputted widths and aspect ratios of the images.</p>
+
+<p>Here&#8217;s how you might iterate over the returned column groupings and render a layout similar to the above:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='haml'><span class='line'><span class="p">-</span> <span class="n">artwork_suggestions</span><span class="o">.</span><span class="n">each_with_index</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork_arr</span><span class="p">,</span> <span class="n">idx</span><span class="o">|</span>
+</span><span class='line'>  <span class="nt">%td</span><span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="s1">&#39;artwork-column&#39;</span><span class="p">,</span> <span class="ss">style</span><span class="p">:</span> <span class="s2">&quot;width: 290px;padding-top:20px;text-align:left;&quot;</span> <span class="p">}</span>
+</span><span class='line'>    <span class="p">-</span> <span class="n">artwork_array</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork</span><span class="o">|</span>
+</span><span class='line'>      <span class="nt">%a</span><span class="p">{</span> <span class="ss">href</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="n">canonical_url</span><span class="si">}</span>/artwork/<span class="si">#{</span><span class="n">artwork</span><span class="o">.</span><span class="n">slug</span><span class="si">}</span>?<span class="si">#{</span><span class="vi">@utm_params</span><span class="si">}</span>&quot; }&lt;
+</span><span class='line'>        <span class="nt">%img</span><span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="s1">&#39;artwork&#39;</span><span class="p">,</span> <span class="ss">src</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="n">artwork</span><span class="o">.</span><span class="n">default_image</span><span class="o">.</span><span class="n">image_url</span><span class="p">(</span><span class="ss">:large</span><span class="p">)</span><span class="si">}</span>&quot;, style: &quot;width: 290px;&quot; }
+</span><span class='line'>      <span class="nt">%br</span>
+</span><span class='line'>      &lt;!-- additional artwork details, title, artist, etc. --&gt;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>These few lines of Ruby code have allowed us to move logic out of Haml (yuck!) and into Ruby (yay!) and allow <a href="http://haml.info/">Haml</a> to just focus on rendering the objects passed in (certainly via loops and conditionals, etc.)</p>
+
+<p>That&#8217;s all for now! In my next post I&#8217;ll talk about how I use the Presenter pattern and memoization to move even more logic out of templates (and save some database calls while we&#8217;re at it!)</p>
+
+<p>Thanks again! Post any comments or tips of your own here, and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Some Tips for Email Layout and Responsiveness]]></title>
     <link href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/"/>
-    <updated>2014-03-17T12:36:00+00:00</updated>
+    <updated>2014-03-17T12:36:00-04:00</updated>
     <id>http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness</id>
     <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/analytics.png" alt="Example of Analytics Email" /></p>
 
@@ -385,7 +543,7 @@ Ruby-style string evaluation has proven invaluable.</li>
   <entry>
     <title type="html"><![CDATA[Detecting trends using Forgetsy]]></title>
     <link href="http://artsy.github.io/blog/2014/03/17/detecting-trends-with-forgetsy/"/>
-    <updated>2014-03-17T11:32:00+00:00</updated>
+    <updated>2014-03-17T11:32:00-04:00</updated>
     <id>http://artsy.github.io/blog/2014/03/17/detecting-trends-with-forgetsy</id>
     <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2014-03-17-detecting-trends-with-forgetsy/monolith.jpg" alt="Armory Trending Screen" /></p>
 
@@ -478,7 +636,7 @@ Ruby-style string evaluation has proven invaluable.</li>
   <entry>
     <title type="html"><![CDATA[Isolating Spurious and Nondeterministic Tests]]></title>
     <link href="http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/"/>
-    <updated>2014-01-30T14:42:00+00:00</updated>
+    <updated>2014-01-30T14:42:00-05:00</updated>
     <id>http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests</id>
     <content type="html"><![CDATA[<p>Testing is a critical part of our workflow at <a href="https://artsy.net">Artsy</a>. It gives us confidence to make regular, aggressive enhancements. But anyone who has worked with a large, complex test suite has struggled with occasional failures that are difficult to reproduce or fix.</p>
 
@@ -545,7 +703,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Rendering on the Server and Client in Node.js]]></title>
     <link href="http://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/"/>
-    <updated>2013-11-30T22:38:00+00:00</updated>
+    <updated>2013-11-30T22:38:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js</id>
     <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2013-12-18-rendering-on-the-server-and-client-in-node-dot-js/isomorphic.png" alt="Diagram of Shared Server/Client Architecture" /></p>
 
@@ -790,7 +948,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Upgrading to Mongoid 4.x]]></title>
     <link href="http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4/"/>
-    <updated>2013-11-07T12:34:00+00:00</updated>
+    <updated>2013-11-07T12:34:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4</id>
     <content type="html"><![CDATA[<p>I recently went through an exercise of upgrading one of Artsy&#8217;s largest web projects to the current HEAD of Mongoid 4.x. This is going to be a major release with numerous changes and I wanted to flush out bugs before the final version of the ODM is released. All Mongoid changes currently live on <a href="https://github.com/mongoid/mongoid">master</a>.</p>
 
@@ -1047,7 +1205,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Introduction to AWS OpsWorks]]></title>
     <link href="http://artsy.github.io/blog/2013/08/27/introduction-to-aws-opsworks/"/>
-    <updated>2013-08-27T12:31:00+01:00</updated>
+    <updated>2013-08-27T12:31:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/08/27/introduction-to-aws-opsworks</id>
     <content type="html"><![CDATA[<p>OpsWorks is a new service from Amazon that promises to provide high-level tools to manage your EC2-based deployment. From <a href="http://aws.typepad.com/aws/2013/02/aws-opsworks-flexible-application-management-in-the-cloud.html">the announcement</a>:</p>
 
@@ -1209,7 +1367,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Normalizing GMail E-Mail Addresses with CanonicalEmails]]></title>
     <link href="http://artsy.github.io/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails/"/>
-    <updated>2013-06-23T12:21:00+01:00</updated>
+    <updated>2013-06-23T12:21:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails</id>
     <content type="html"><![CDATA[<p>A whopping 49% of Artsy users have &#8220;gmail.com&#8221; email addresses. The next domain name, &#8220;hotmail.com&#8221;, doesn&#8217;t even come close, with only 6%.</p>
 
@@ -1401,7 +1559,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Adding API Docs with Grape and Swagger]]></title>
     <link href="http://artsy.github.io/blog/2013/06/21/adding-api-documentation-with-grape-swagger/"/>
-    <updated>2013-06-21T12:21:00+01:00</updated>
+    <updated>2013-06-21T12:21:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/06/21/adding-api-documentation-with-grape-swagger</id>
     <content type="html"><![CDATA[<p>The Artsy website, Partner CMS, mobile tools, and all our hackathon experiments are built on top of a core API. We&#8217;ve put a lot of effort into documenting it internally. But developers don&#8217;t want to have to grok through code. With <a href="https://github.com/intridea/grape">Grape</a> and <a href="https://developers.helloreverb.com/swagger">Swagger</a>, adding an API explorer and exposing the API documentation has never been easier.</p>
 
@@ -1550,7 +1708,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Writing Headless Backbone Tests With Node.js]]></title>
     <link href="http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/"/>
-    <updated>2013-06-14T17:48:00+01:00</updated>
+    <updated>2013-06-14T17:48:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js</id>
     <content type="html"><![CDATA[<h2>TL;DR</h2>
 
@@ -1983,7 +2141,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Bootstrapping JSON Data with Rails and Backbone.js]]></title>
     <link href="http://artsy.github.io/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js/"/>
-    <updated>2013-04-13T12:21:00+01:00</updated>
+    <updated>2013-04-13T12:21:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js</id>
     <content type="html"><![CDATA[<p>The <a href="http://artsy.net">artsy.net website</a> is a Backbone.js application that talks to a server-side RESTful Grape API sitting on top of a Rails app which serves minimal HTML markup. The latter includes such things as a page title, along with links to JavaScript and stylesheet packages. A page loads, scripts run, data is fetched from the API. The result is merged into a HAMLJS template and rendered client-side.</p>
 
@@ -2108,7 +2266,7 @@ script:
   <entry>
     <title type="html"><![CDATA[ARAnalytics - Analytics for iOS Apps]]></title>
     <link href="http://artsy.github.io/blog/2013/04/10/aranalytics/"/>
-    <updated>2013-04-10T17:23:00+01:00</updated>
+    <updated>2013-04-10T17:23:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/04/10/aranalytics</id>
     <content type="html"><![CDATA[<p>In both my <a href="http://orta.github.com">personal apps</a> and Artsy Folio, I&#8217;m always after a deeper understanding of how people use the app. There&#8217;s three ways to do this: ask users, watch users and track usage. I&#8217;d like to talk about the third of these.</p>
 
@@ -2139,7 +2297,7 @@ script:
   <entry>
     <title type="html"><![CDATA[An Easter Egg for Curl]]></title>
     <link href="http://artsy.github.io/blog/2013/04/01/an-easter-egg-for-curl/"/>
-    <updated>2013-04-01T12:21:00+01:00</updated>
+    <updated>2013-04-01T12:21:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/04/01/an-easter-egg-for-curl</id>
     <content type="html"><![CDATA[<p>Let&#8217;s implement an Easter egg that requires <a href="http://curl.haxx.se/">curl</a> and is HTTP-compliant.</p>
 
@@ -2348,7 +2506,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Musical Chairs]]></title>
     <link href="http://artsy.github.io/blog/2013/03/29/musical-chairs/"/>
-    <updated>2013-03-29T16:38:00+00:00</updated>
+    <updated>2013-03-29T16:38:00-04:00</updated>
     <id>http://artsy.github.io/blog/2013/03/29/musical-chairs</id>
     <content type="html"><![CDATA[<p> At Artsy we make Artsy Folio. Folio is an awesome portfolio app that shows our gallery and museum partners their artworks in one place, allows them to easily get information about their inventory and to send works by email to their contacts.</p>
 
@@ -2372,7 +2530,7 @@ script:
   <entry>
     <title type="html"><![CDATA[The Impact of Heroku's Routing Mesh and Random Routing]]></title>
     <link href="http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/"/>
-    <updated>2013-02-17T12:21:00+00:00</updated>
+    <updated>2013-02-17T12:21:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing</id>
     <content type="html"><![CDATA[<p>The <a href="http://rapgenius.com/James-somers-herokus-ugly-secret-lyrics">Heroku&#8217;s Ugly Secret</a> blog post went viral last week. I <a href="http://code.dblock.org/in-defense-of-heroku">wrote</a> in defense of Heroku, which has now responded with an official <a href="https://blog.heroku.com/archives/2013/2/16/routing_performance_update/">Routing Performance Update</a>.</p>
 
@@ -2505,7 +2663,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Infinite Scroll with MongoDB]]></title>
     <link href="http://artsy.github.io/blog/2013/02/15/infinite-scroll-with-mongodb/"/>
-    <updated>2013-02-15T21:21:00+00:00</updated>
+    <updated>2013-02-15T21:21:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/02/15/infinite-scroll-with-mongodb</id>
     <content type="html"><![CDATA[<p>An infinite scroll can be a beautiful and functional way to present feed data. You can see ours on the <a href="http://artsy.net/">homepage of artsy.net</a>. It works by fetching a few items from the API, then fetching some more items as the user scrolls down the feed. Each API call returns the items along with a &#8220;cursor&#8221;, which marks the position of the last item retrieved. Subsequent API calls include the cursor in the query string and the iteration resumes from there.</p>
 
@@ -2678,7 +2836,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Data Corruption and Concurrent Updates to Embedded Objects with MongoDB]]></title>
     <link href="http://artsy.github.io/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/"/>
-    <updated>2013-02-09T21:21:00+00:00</updated>
+    <updated>2013-02-09T21:21:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid</id>
     <content type="html"><![CDATA[<p>We use <a href="http://www.mongodb.org/">MongoDB</a> at Artsy as our primary data store via the <a href="http://mongoid.org/">Mongoid ODM</a>. Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.</p>
 
@@ -3046,7 +3204,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Master the Heroku CLI with Heroku Commander]]></title>
     <link href="http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/"/>
-    <updated>2013-02-01T21:21:00+00:00</updated>
+    <updated>2013-02-01T21:21:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander</id>
     <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2013-02-01-master-heroku-command-line-with-heroku-commander/heroku-commander.png"></p>
 
@@ -3139,7 +3297,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Create MongoDB Command-Lines from Mongoid Configuration]]></title>
     <link href="http://artsy.github.io/blog/2013/01/31/create-mongodb-command-lines-with-mongo/"/>
-    <updated>2013-01-31T21:21:00+00:00</updated>
+    <updated>2013-01-31T21:21:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/01/31/create-mongodb-command-lines-with-mongo</id>
     <content type="html"><![CDATA[<p>We use MongoDB as our primary store and have built a healthy amount of automation around various database instances and operational environments. For example, we backup databases to S3 using <code>mongodump</code>, mirror data between instances with <code>mongorestore</code> and often need to open a MongoDB shell with <code>mongo</code> to examine data at the lowest level.</p>
 
@@ -3264,7 +3422,7 @@ script:
   <entry>
     <title type="html"><![CDATA[Improving Performance of Mongoid-Cached-Json]]></title>
     <link href="http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json/"/>
-    <updated>2013-01-20T21:21:00+00:00</updated>
+    <updated>2013-01-20T21:21:00-05:00</updated>
     <id>http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json</id>
     <content type="html"><![CDATA[<p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
 
@@ -3302,172 +3460,6 @@ script:
 <li><a href="http://artsy.github.io/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
 </ul>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Debugging Bundler Issues on Heroku]]></title>
-    <link href="http://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku/"/>
-    <updated>2013-01-15T21:21:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku</id>
-    <content type="html"><![CDATA[<p>A few days ago we have started seeing the Heroku deployments of one of our applications randomly hang during <code>bundle install</code>. The problem worsened with time and we were not able to do a deployment for days.</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>$ git push -f git@heroku.com:application.git FETCH_HEAD:master
-</span><span class='line'>-----&gt; Deleting 12 files matching .slugignore patterns.
-</span><span class='line'>-----&gt; Ruby/Rails app detected
-</span><span class='line'>-----&gt; Using Ruby version: ruby-1.9.3
-</span><span class='line'>-----&gt; Installing dependencies using Bundler version 1.3.0.pre.5
-</span><span class='line'>       Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin
-</span><span class='line'>       Fetching gem metadata from http://rubygems.org/.......
-</span><span class='line'>       Fetching gem metadata from http://rubygems.org/..
-</span><span class='line'>/app/slug-compiler/lib/utils.rb:66:in `block (2 levels) in spawn': command='/app/slug-compiler/lib/../../tmp/buildpacks/ruby/bin/compile /tmp/build_1p6071sni4hh1 /app/tmp/repo.git/.cache' exit_status=0 out='' at=timeout elapsed=900.1056394577026 (Utils::TimeoutError)
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:52:in `loop'
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:52:in `block in spawn'
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:47:in `popen'
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:47:in `spawn'
-</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:37:in `block in compile'
-</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:35:in `fork'
-</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:35:in `compile'
-</span><span class='line'>  from /app/slug-compiler/lib/slug.rb:497:in `block in run_buildpack'
-</span><span class='line'> !     Heroku push rejected, failed to compile Ruby/rails app</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Seeing bundler hang on &#8220;Fetching gem metadata from http://rubygems.org/&#8221;, my immediate reaction was to blame the RubyGems Dependency API for its poor performance and attempt the <a href="http://hone.herokuapp.com/bundler%20heroku/2012/10/22/rubygems-and-the-dependency-api.html">recommended workaround</a> of switching to <em>http://bundler-api.herokuapp.com</em>. That didn&#8217;t work.</p>
-
-<p>I also tried to reproduce the issue on a local environment, including a (what I thought was) a completely clean machine at no avail. My <code>bundle install</code> would always succeed.</p>
-
-<p>Finally, everything pointed at an infrastructure problem with Heroku itself, so I opened a ticket (#72648), <a href="https://twitter.com/dblockdotorg/status/290221530892365824">tweeted</a> endlessly to Heroku devs, pinged a  contact at Heroku on Skype and generally annoyed people for 5 straight days. It was a frustrating problem and I was getting no useful help.</p>
-
-<p>Fast forward, this turned out to be <a href="https://github.com/carlhuda/bundler/issues/2248">an issue in Bundler</a>. Narrowing it down would have been relatively easy if I had known where to look.</p>
-
-<p>I hope this post helps you with similar issues.</p>
-
-<!-- more -->
-
-
-<h2>Heroku Slug Compiler</h2>
-
-<p>Heroku provides small Ubuntu virtual machines on-demand, called &#8220;dynos&#8221;, that look very much like any other Linux box. You can <code>heroku run bash</code> and examine the file system of a running dyno. You can delete the bundler cache, rerun <code>bundle install</code>, etc. But deployment does not happen in a running dyno - every time you push to Heroku, deployment happens inside a compiler dyno. Heroku attaches the dyno to your slug filesystem (your code), which may include a cache from previous runs. It then executes the code inside <a href="https://github.com/heroku/heroku-buildpack-ruby">heroku-buildpack-ruby</a>, specifically <a href="https://github.com/heroku/heroku-buildpack-ruby/blob/5dbf4c06c765dc832c073fe5be9360533fd1846d/lib/language_pack/ruby.rb#L49">this method</a>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">compile</span>
-</span><span class='line'>  <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">build_path</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">remove_vendor_bundle</span>
-</span><span class='line'>  <span class="n">install_ruby</span>
-</span><span class='line'>  <span class="n">install_jvm</span>
-</span><span class='line'>  <span class="n">setup_language_pack_environment</span>
-</span><span class='line'>  <span class="n">setup_profiled</span>
-</span><span class='line'>  <span class="n">allow_git</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">install_language_pack_gems</span>
-</span><span class='line'>    <span class="n">build_bundler</span>
-</span><span class='line'>    <span class="n">create_database_yml</span>
-</span><span class='line'>    <span class="n">install_binaries</span>
-</span><span class='line'>    <span class="n">run_assets_precompile_rake_task</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>A lot of these functions invoke <code>IO.open</code> and transmit <code>$stdout</code> and <code>$stderr</code> back to you. You see everything Heroku sees and while you cannot get access to the compiler dyno, there&#8217;s really no mystery to this process. Heroku slug compiler will timeout after 15 minutes and produce a stack with <code>Utils::TimeoutError</code>. And everything Heroku does should be reproducible locally.</p>
-
-<h2>Troubleshooting Bundler</h2>
-
-<p>The key to getting a repro of my issue locally was to use the <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a> section. I had previously missed one of the steps in cleaning the local Bundler cache.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># remove user-specific gems and git repos</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="o">~</span><span class="sr">/.bundle/</span> <span class="o">~</span><span class="sr">/.gem/</span><span class="n">bundler</span><span class="o">/</span> <span class="o">~</span><span class="sr">/.gems/</span><span class="n">cache</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove system-wide git repos and git checkouts</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="vg">$GEM_HOME</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span> <span class="vg">$GEM_HOME</span><span class="o">/</span><span class="n">cache</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove project-specific settings and git repos</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="o">.</span><span class="n">bundle</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove project-specific cached .gem files</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="n">vendor</span><span class="o">/</span><span class="n">cache</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove the saved resolve of the Gemfile</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="no">Gemfile</span><span class="o">.</span><span class="n">lock</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># uninstall the rubygems-bundler and open_gem gems</span>
-</span><span class='line'><span class="n">rvm</span> <span class="n">gemset</span> <span class="n">use</span> <span class="n">global</span> <span class="c1"># if using rvm</span>
-</span><span class='line'><span class="n">gem</span> <span class="n">uninstall</span> <span class="n">rubygems</span><span class="o">-</span><span class="n">bundler</span> <span class="n">open_gem</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># try to install one more time</span>
-</span><span class='line'><span class="n">bundle</span> <span class="n">install</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This hung with my Gemfile the same way as on Heroku.</p>
-
-<h2>Bundler Dependency Resolver</h2>
-
-<p>So what is bundler doing?</p>
-
-<p>Bundler runs the gem dependency resolver, which is described in detail in <a href="http://patshaughnessy.net/2011/9/24/how-does-bundler-bundle">Pat Shaughnessy&#8217;s blog post</a>. The post suggests running <code>DEBUG_RESOLVER=1 bundle install</code>, which produced a mountain of output that isn&#8217;t very helpful.</p>
-
-<p>I made a <a href="https://github.com/carlhuda/bundler/pull/2249">pull request</a> with a similar setting called <code>DEBUG_RESOLVER_TREE</code>, which reduces the output to the gems being resolved. This helped me narrow down a <a href="https://github.com/carlhuda/bundler/issues/2248">small repro</a>. I was also able to make some sense of what bundler was doing: backtracking in an attempt to find a combination of gems matching the versions declared in <code>Gemfile</code> for every combinations of <code>railties</code>, <code>actionmailer</code>, <code>activeresource</code>, <code>activerecord</code>, <code>actionpack</code> and <code>builder</code> above version 3.2, only to fail to find a compatible version of <code>builder</code> every single time. That&#8217;s a lot of versions to try.</p>
-
-<p>Adding an entry for <code>builder</code> to <code>Gemfile</code> fixed the issue.</p>
-
-<p>Similar issues to my <a href="https://github.com/carlhuda/bundler/issues/2248">#2248</a> in Bundler have been reported in <a href="https://github.com/carlhuda/bundler/issues/2030">#2030</a>, <a href="https://github.com/carlhuda/bundler/issues/2090">#2090</a> and <a href="https://github.com/carlhuda/bundler/issues/2125">#2125</a>.</p>
-
-<h2>Troubleshooting Tip</h2>
-
-<p>If you remember anything from this post, next time you have a hang inside <code>bundle install</code> on or off Heroku, start with <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a>.</p>
 ]]></content>
   </entry>
   
