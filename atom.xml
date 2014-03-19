@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.io/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2014-03-18T12:02:57-04:00</updated>
+  <updated>2014-03-19T12:05:22-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,139 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Presenters and Memoization: Moving Logic out of Templates]]></title>
+    <link href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/"/>
+    <updated>2014-03-18T17:27:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates</id>
+    <content type="html"><![CDATA[<p>When dealing with rendering data for an email, one frequently has to make many database calls to assemble the required data. This can be slow, and depending on how you structure the code that is assembling the data vs rendering the data in a template, it&#8217;s very easy to be making repeated calls, which can significantly slow down your process. Additionally, whether you are using <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or any other templating language, embedding too much logic in the template can making things hard to maintain (especially if some logic lives in the template and some elsewhere in your domain code). Of course some logic in the template (a conditional: should I render this section?, or loops: render this hash of data) is necessary, but I like to keep as much out of there as possible. It&#8217;s easier to optimize, debug and maintain that logic elsewhere, and also writing complex logic in <a href="https://www.ruby-lang.org">Ruby</a> is much more fun than in a templating language!</p>
+
+<p>In this article I&#8217;ll present what I&#8217;ve been doing to keep my templates relatively logic-free, and how I make sure I don&#8217;t repeat any heavy database calls in assembling my data.</p>
+
+<!-- more -->
+
+
+<h2>The Setup - Presenters and Memoization</h2>
+
+<p>First, I&#8217;d like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with <a href="http://rubyonrails.org/">Rails</a> that I&#8217;ve found useful:</p>
+
+<ul>
+<li><a href="http://blog.jayfields.com/2007/03/rails-presenter-pattern.html">Jay Fields&#8217; Guide to Presenters</a></li>
+<li><a href="http://www.slideshare.net/mdesjardins/presenters-in-rails">Mike Desjardins&#8217; Slideshare Presentation</a></li>
+</ul>
+
+
+<p>Consider the following screenshot of a section of a weekly email that we send our users:</p>
+
+<p><img src="http://artsy.github.io/images/2014-03-18-presenters-and-memoization-moving-logic-out-of-templates/recently_added.png" alt="Example of Recently Added Works" /></p>
+
+<p>This section shows works that have been added that week by artists that you follow. That&#8217;s clearly going to involve some database calls, and potentially heavy ones at that. Now we&#8217;d like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.</p>
+
+<p>Let&#8217;s start by creating a Module to hold the various logic required for this email:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Ok, so far so good. In our mail template rendering/calling code, we can now say:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="vi">@presenter</span> <span class="o">=</span> <span class="no">WeeklyEmailPresenter</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will allow us to refer to methods in this class in our mail template. So now let&#8217;s add a method that will query our database and return a list of artists that this user should be notified about:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">recently_added_works</span>
+</span><span class='line'>    <span class="c1"># Some really heavy database query</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Ok, that was easy. In our HAML template, we can now do:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='haml'><span class='line'><span class="p">-</span><span class="k">if</span> <span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span> <span class="o">&amp;&amp;</span> <span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span><span class="o">.</span><span class="n">any?</span>
+</span><span class='line'>  <span class="nt">%table</span>
+</span><span class='line'>    <span class="nt">%tr</span>
+</span><span class='line'>      <span class="nt">%td</span>
+</span><span class='line'>        <span class="p">-</span><span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artists</span><span class="o">|</span>
+</span><span class='line'>          &lt;!-- markup to render each artist with recently added works --&gt;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>However, take a look at how many times we&#8217;ve referred to <code>@presenter.recently_added_works</code> - 3 times already! And we&#8217;ll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you&#8217;ve implemented the method <code>recently_added_works</code>, you may be re-querying the database every time it&#8217;s referred to! Clearly that&#8217;s a lot of wasted resources. So, let&#8217;s look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">recently_added_works</span>
+</span><span class='line'>    <span class="vi">@recently_added_works</span> <span class="o">||=</span> <span class="n">build_recently_added_works</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">build_recently_added_works</span>
+</span><span class='line'>    <span class="c1"># Code to do database lookups</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>All we&#8217;re doing is moving the actual code that&#8217;s doing the heavy lifting into a <code>private</code> method (for convention, I like to prefix the name with <code>build_</code>). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate <code>private</code> method. Through using an instance variable combined with conditional assignment, we guarantee that the <code>build_</code> method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.</p>
+
+<p>That&#8217;s it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code>build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you&#8217;re not repeating any long-running database queries or other slow data processing.</p>
+
+<p>Hopefully you&#8217;ve found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Ruby Helper to Group Artworks into a Pinterest-style Layout for Email]]></title>
@@ -3415,50 +3548,6 @@ script:
 </span><span class='line'> <span class="n">connecting</span> <span class="ss">to</span><span class="p">:</span> <span class="ss">db</span><span class="p">:</span><span class="mi">10007</span><span class="o">/</span><span class="n">app</span><span class="o">-</span><span class="n">staging</span>
 </span><span class='line'> <span class="o">&gt;</span>
 </span></code></pre></td></tr></table></div></figure>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Improving Performance of Mongoid-Cached-Json]]></title>
-    <link href="http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json/"/>
-    <updated>2013-01-20T21:21:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json</id>
-    <content type="html"><![CDATA[<p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
-
-<p>Today we&#8217;ve released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
-
-<!-- more -->
-
-
-<h2>Bulk Reference Resolving with a Local Cache</h2>
-
-<p>Consider an array of database model instances, each with numerous references to other objects. It&#8217;s typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It&#8217;s common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
-
-<p><code>Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
-
-<p>Note, that while this optimization reduces load on the Memcached servers, there&#8217;s a cost of doing additional work after collecting the entire JSON in Ruby.</p>
-
-<h2>Fetching Cache Data in Bulk</h2>
-
-<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
-
-<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
-
-<h2>Benchmarks</h2>
-
-<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We&#8217;ve added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we&#8217;re seeing 15-50% less time spent in Memcached, depending on the API.</p>
-
-<h2>Links</h2>
-
-<p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
-
-<ul>
-<li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
-<li><a href="http://artsy.github.io/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
-<li><a href="http://artsy.github.io/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
-<li><a href="http://artsy.github.io/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
-</ul>
 
 ]]></content>
   </entry>

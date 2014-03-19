@@ -268,13 +268,19 @@
         <loc>
             http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/
         </loc>
-        <lastmod>2014-03-18T12:01:19-04:00</lastmod>
+        <lastmod>2014-03-18T19:06:45-04:00</lastmod>
     </url>
     <url>
         <loc>
             http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/
         </loc>
-        <lastmod>2014-03-18T12:01:19-04:00</lastmod>
+        <lastmod>2014-03-18T19:06:33-04:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/
+        </loc>
+        <lastmod>2014-03-19T12:00:29-04:00</lastmod>
     </url>
     <url>
         <loc>http://artsy.github.io/about/</loc>
@@ -282,14 +288,14 @@
     </url>
     <url>
         <loc>http://artsy.github.io/blog/archives/</loc>
-        <lastmod>2014-03-18T12:01:19-04:00</lastmod>
+        <lastmod>2014-03-19T12:00:29-04:00</lastmod>
     </url>
     <url>
         <loc>http://artsy.github.io/</loc>
-        <lastmod>2014-03-18T12:01:19-04:00</lastmod>
+        <lastmod>2014-03-19T12:00:29-04:00</lastmod>
     </url>
     <url>
         <loc>http://artsy.github.io/open-source/</loc>
-        <lastmod>2014-03-18T12:01:19-04:00</lastmod>
+        <lastmod>2014-03-18T12:45:40-04:00</lastmod>
     </url>
 </urlset>
